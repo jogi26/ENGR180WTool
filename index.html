@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Checks essays against the Engineering Words clear-writing rules for UCR ENGR180W. Runs entirely in your browser.">
+  <title>ENGR180W Writing Checker</title>
+  <link rel="stylesheet" href="src/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a6f5e'/%3E%3Cpath d='M9 17l5 5 9-12' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>ENGR180W Writing Checker</h1>
+      <p class="sub">Checks your draft against <em>Engineering Words</em>, ch. 2 (Clear Writing Guidelines). It flags problems and cites the book's fix. It does not write for you. Your text never leaves this browser.</p>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card editor-card" aria-label="Essay editor">
+      <div class="toolbar">
+        <label for="essay" class="lbl">Paste or type your essay</label>
+        <div class="btns">
+          <button id="baseline" type="button" title="Remember the current counts so you can see progress">Save baseline</button>
+          <button id="copy" type="button">Copy report</button>
+          <button id="clear" type="button">Clear</button>
+        </div>
+      </div>
+      <div class="editor">
+        <div id="mirror" class="mirror" aria-hidden="true"></div>
+        <textarea id="essay" spellcheck="true" placeholder="Paste your essay here. Short lines like headings are skipped."></textarea>
+      </div>
+      <div id="caret" class="caret" aria-live="polite"></div>
+    </section>
+
+    <aside class="side">
+      <section class="card" aria-label="Predicted rubric score">
+        <div class="scorehead">
+          <div id="band" class="band" data-band="100" role="status" aria-live="polite"><span class="num">100</span></div>
+          <div>
+            <div id="bandLabel" class="bandlabel">Well done</div>
+            <div class="muted small">Predicted "Writing guidelines" band. An estimate: only your instructor knows the real cutoffs.</div>
+          </div>
+        </div>
+        <ul id="counts" class="counts"></ul>
+        <p id="stats" class="muted small"></p>
+      </section>
+
+      <section class="card" aria-label="Issues">
+        <div class="issuehead">
+          <h2>Issues</h2>
+          <div id="filters" class="filters" role="group" aria-label="Show issue types"></div>
+        </div>
+        <ol id="issues" class="issues"></ol>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="foot small muted">
+    Rules come from Engineering Words (Burton &amp; Graham Gonzalez), ch. 2 and Table 2.1. Tense and passive-voice checks are heuristics: use judgment. Always run your final draft past a person.
+  </footer>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
