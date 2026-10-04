@@ -2,6 +2,7 @@ import {
   NOISE, FUTURE, LATINATES, IRREGULAR_PAST, IRREGULAR_PARTICIPLES, NON_VERB_ED, ADJECTIVE_ED, VAGUE_NEXT, LIMITS,
 } from './rules.js';
 import { segment, countWords, WORD_RE } from './segment.js';
+import { grammarRules } from './grammar.js';
 
 const NOISE_RES = NOISE.map((n) => ({ ...n, rx: new RegExp(`\\b(?:${n.re})\\b`, 'gi') }));
 const FUTURE_RES = FUTURE.map((f) => ({ ...f, rx: new RegExp(`\\b(?:${f.re})(?![\\w'])`, 'gi') }));
@@ -34,16 +35,52 @@ function syllables(word) {
   return Math.max(1, n);
 }
 
+const hIssue = (p, severity, message, fix) => ({ type: 'heading', severity, start: p.start, end: p.end, message, fix });
+
+// Headings and the document header block (name/course/instructor/date lines, then the title).
+function checkHeadings(paragraphs, body, add) {
+  if (body < 3) return;
+  let lead = 0;
+  while (lead < paragraphs.length && paragraphs[lead].isHeading) lead++;
+  const first = paragraphs[0];
+  if (lead === 0) {
+    add(hIssue(first, 'info', 'No title found at the top. The first short line should be your title.', 'Add a short title line (no end punctuation).'));
+  } else {
+    const block = paragraphs.slice(0, lead - 1);
+    const hasDate = block.some((p) => p.hasYear);
+    if (block.length < 2 || !hasDate) {
+      add(hIssue(first, 'info', 'Header block: the top of the page usually lists your name, course, instructor and date before the title.', 'Add those lines above the title (check your assignment instructions).'));
+    }
+  }
+  let run = 0, headings = 0;
+  for (let i = lead; i < paragraphs.length; i++) {
+    const p = paragraphs[i];
+    if (p.isHeading) {
+      headings++;
+      const next = paragraphs[i + 1];
+      if (!next || next.isHeading) add(hIssue(p, 'info', 'Heading with no text under it.', 'Add a paragraph under the heading or remove it.'));
+      run = 0;
+    } else if (++run === 6) {
+      add(hIssue(p, 'warn', '6 paragraphs in a row with no heading. The book says to add a heading every 3-5 paragraphs.', 'Add a short heading where the topic shifts.'));
+      run = 1;
+    }
+  }
+  const bodyAfter = paragraphs.slice(lead).filter((p) => !p.isHeading).length;
+  if (bodyAfter >= 4 && headings / bodyAfter >= 0.75) {
+    add(hIssue(paragraphs[lead], 'info', 'A heading on nearly every paragraph slows scanning. The book says three to five paragraphs per heading.', 'Merge sections so each heading covers 3-5 paragraphs.'));
+  }
+}
+
 export function analyze(text) {
   const { paragraphs } = segment(text);
   const issues = [];
   let sid = 0;
-  let totalWords = 0, totalSentences = 0, totalSyll = 0, hasHeading = false;
+  let totalWords = 0, totalSentences = 0, totalSyll = 0;
 
   const add = (o) => issues.push(o);
 
   paragraphs.forEach((p, pid) => {
-    if (p.isHeading) { hasHeading = true; return; }
+    if (p.isHeading) return;
     const pWords = p.sentences.reduce((a, s) => a + s.words, 0);
 
     p.sentences.forEach((s, idx) => {
@@ -139,13 +176,11 @@ export function analyze(text) {
   });
 
   const body = paragraphs.filter((p) => !p.isHeading).length;
-  if (body > 5 && !hasHeading) {
-    add({ type: 'heading', severity: 'info', start: 0, end: 0,
-      message: 'No headings found. The book says to add a heading every 3-5 paragraphs.', fix: 'Add short headings.' });
-  }
+  checkHeadings(paragraphs, body, add);
 
   const grade = totalSentences && totalWords
     ? 0.39 * (totalWords / totalSentences) + 11.8 * (totalSyll / totalWords) - 15.59 : 0;
+  issues.push(...grammarRules(paragraphs));
   issues.sort((a, b) => a.start - b.start || a.end - b.end);
   return { issues, paragraphs, stats: { words: totalWords, sentences: totalSentences,
     paragraphs: body, grade: Math.round(grade * 10) / 10 } };

@@ -12,7 +12,7 @@
   <header class="top">
     <div>
       <h1>ENGR180W Writing Checker</h1>
-      <p class="sub">Checks your draft against <em>Engineering Words</em>, ch. 2 (Clear Writing Guidelines). It flags problems and cites the book's fix. It does not write for you. Your text never leaves this browser.</p>
+      <p class="sub">Checks your draft against <em>Engineering Words</em>, ch. 2 (Clear Writing Guidelines). It flags writing-guideline, grammar and spelling problems and cites the fix. It does not write for you. Your text never leaves this browser.</p>
     </div>
   </header>
 
@@ -29,6 +29,10 @@
       <div class="editor">
         <div id="mirror" class="mirror" aria-hidden="true"></div>
         <textarea id="essay" spellcheck="true" placeholder="Paste your essay here. Short lines like headings are skipped."></textarea>
+      </div>
+      <div class="gbar">
+        <label class="check"><input type="checkbox" id="grammarToggle" checked> Grammar &amp; spelling check</label>
+        <span id="gstatus" class="muted small" role="status"></span>
       </div>
       <div id="caret" class="caret" aria-live="polite"></div>
     </section>
@@ -57,7 +61,7 @@
   </main>
 
   <footer class="foot small muted">
-    Rules come from Engineering Words (Burton &amp; Graham Gonzalez), ch. 2 and Table 2.1. Tense and passive-voice checks are heuristics: use judgment. Always run your final draft past a person.
+    Rules come from Engineering Words (Burton &amp; Graham Gonzalez), ch. 2 and Table 2.1. Grammar uses the open-source Harper engine, running locally. Tense, passive-voice and fragment checks are heuristics: use judgment. Always run your final draft past a person.
   </footer>
   <script type="module" src="src/app.js"></script>
 </body>

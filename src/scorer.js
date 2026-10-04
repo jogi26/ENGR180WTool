@@ -17,6 +17,8 @@ export function score(result) {
     passive: count('passive'),
     latinate: count('latinate'),
     ambiguousRef: count('ambiguousRef'),
+    grammar: count('grammar'),
+    heading: count('heading'),
   };
   // A sentence that is both long and past/future counts once.
   const longErrors = new Set(result.issues.filter((i) => i.type === 'longSentence' && i.severity === 'error').map((i) => i.sid));

@@ -67,6 +67,7 @@ test('latinate and vague reference', () => {
 
 test('headings are not sentence-checked; HTML stays literal', () => {
   assert.equal(analyze('Why I Choose Computer Engineering').issues.length, 0);
+  assert.equal(analyze('Intro\nA fine day.').issues.length, 0);
   const t = 'Use <b>bold</b> text.';
   assert.doesNotThrow(() => analyze(t));
 });
@@ -83,4 +84,38 @@ test('50k words stays fast', () => {
   const t0 = Date.now();
   analyze(big);
   assert.ok(Date.now() - t0 < 4000);
+});
+
+const para = (n) => `Tests help us ship ${n}.`;
+const doc = (parts) => parts.join('\n\n');
+
+test('headings: 6 body paragraphs in a row without a heading', () => {
+  const t = doc(['Title', ...[1, 2, 3, 4, 5, 6].map(para)]);
+  const h = analyze(t).issues.filter((i) => i.type === 'heading');
+  assert.ok(h.some((i) => i.severity === 'warn' && /heading/i.test(i.message)));
+});
+
+test('headings: a heading every 3-5 paragraphs is fine', () => {
+  const t = doc(['Name Here', 'Course 101', 'Prof Smith', 'October 1, 2026', 'My Title',
+    para(1), para(2), para(3), 'Part Two', para(4), para(5), para(6)]);
+  assert.deepEqual(analyze(t).issues.filter((i) => i.type === 'heading'), []);
+});
+
+test('headings: heading with no text under it', () => {
+  const t = doc(['Name Here', 'Course 101', 'Prof Smith', 'October 1, 2026', 'My Title', para(1), para(2), para(3), 'Empty Section', 'Next Section', para(4)]);
+  assert.ok(analyze(t).issues.some((i) => i.type === 'heading' && /no text/i.test(i.message)));
+});
+
+test('headings: heading on every paragraph slows scanning', () => {
+  const t = doc(['Name Here', 'Course 101', 'Prof Smith', 'October 1, 2026', 'My Title', para(1), 'B', para(2), 'C', para(3), 'D', para(4)]);
+  assert.ok(analyze(t).issues.some((i) => i.type === 'heading' && /every paragraph/i.test(i.message)));
+});
+
+test('header block: missing title and missing name/course/date block', () => {
+  const noTitle = analyze(doc([para(1), para(2), para(3)]));
+  assert.ok(noTitle.issues.some((i) => i.type === 'heading' && /title/i.test(i.message)));
+  const noBlock = analyze(doc(['My Title', para(1), para(2), para(3)]));
+  assert.ok(noBlock.issues.some((i) => i.type === 'heading' && /header block/i.test(i.message)));
+  const ok = analyze(doc(['Name Here', 'ENGR180W, Section 22', 'Prof Smith', 'October 1, 2026', 'My Title', para(1), para(2), para(3)]));
+  assert.deepEqual(ok.issues.filter((i) => i.type === 'heading'), []);
 });

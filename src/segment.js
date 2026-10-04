@@ -53,7 +53,7 @@ export function segment(text) {
     const line = rawLine.trim();
     if (!line) continue;
     const base = m.index + (rawLine.length - rawLine.trimStart().length);
-    const para = { start: base, end: base + line.length, isHeading: isHeading(line), sentences: [] };
+    const para = { start: base, end: base + line.length, isHeading: isHeading(line), hasYear: /\b(?:19|20)\d\d\b/.test(line), sentences: [] };
     if (!para.isHeading) {
       for (const s of splitSentences(line)) {
         const st = base + s.start;

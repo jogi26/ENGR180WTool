@@ -20,6 +20,14 @@ test('Passion Report (scored 0/100) predicts "Not at all" and flags known proble
   assert.ok(flagged('noise').some((t) => /utiliz/i.test(t) || /may/i.test(t)));
 });
 
+test('Passion Report: custom grammar rules catch known errors', () => {
+  const text = load('passion-report.txt');
+  const hit = analyze(text).issues.filter((i) => i.type === 'grammar').map((i) => text.slice(i.start, i.end));
+  assert.ok(hit.includes('is'), 'There is quite a few');
+  assert.ok(hit.includes('force'), 'This force me');
+  assert.ok(hit.some((h) => h.startsWith('Being able to secure')), 'fragment');
+});
+
 test('Clean sample predicts 100 with no rubric issues', () => {
   const s = score(analyze(load('clean-sample.txt')));
   assert.equal(s.rubricIssues, 0);

@@ -23,7 +23,7 @@ h2 { margin: 0; font-size: 1.05rem; }
 .muted { color: var(--muted); } .small { font-size: .85rem; }
 .grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr); gap: 16px; align-items: start; padding-bottom: 16px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
-.side { display: grid; gap: 16px; position: sticky; top: 12px; max-height: calc(100vh - 24px); grid-template-rows: auto minmax(0, 1fr); }
+.side { display: grid; gap: 16px; min-width: 0; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .lbl { font-weight: 600; }
 button { font: inherit; font-size: .9rem; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
@@ -33,7 +33,7 @@ button:focus-visible, textarea:focus-visible, .issue:focus-visible { outline: 3p
 
 .editor { position: relative; height: min(70vh, 720px); min-height: 360px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .mirror, #essay {
-  position: absolute; inset: 0; margin: 0; padding: 12px 14px; border: 0;
+  position: absolute; inset: 0; margin: 0; padding: 12px 14px 28px; border: 0;
   font: 16px/1.7 ui-serif, Georgia, "Times New Roman", serif; letter-spacing: 0; word-spacing: 0;
   white-space: pre-wrap; overflow-wrap: break-word; tab-size: 4;
 }
@@ -43,6 +43,7 @@ button:focus-visible, textarea:focus-visible, .issue:focus-visible { outline: 3p
 mark.t-longSentence { background: var(--m-long-warn); } mark.t-longSentence.sev-error { background: var(--m-long-err); }
 mark.t-noise { background: var(--m-noise); }
 mark.t-past, mark.t-future { text-decoration: underline wavy var(--m-time) 2px; text-underline-offset: 4px; }
+mark.t-grammar { text-decoration: underline wavy var(--bad) 2px; text-underline-offset: 4px; }
 mark.t-passive { text-decoration: underline dotted var(--m-passive) 2px; text-underline-offset: 4px; }
 mark.t-latinate, mark.t-ambiguousRef { text-decoration: underline dashed var(--m-soft) 1px; text-underline-offset: 4px; }
 mark.focus { outline: 2px solid var(--accent); }
@@ -66,7 +67,7 @@ mark.focus { outline: 2px solid var(--accent); }
 .filters { display: flex; gap: 4px; flex-wrap: wrap; }
 .filters button { padding: 2px 8px; font-size: .78rem; border-radius: 99px; }
 .filters button[aria-pressed="false"] { opacity: .5; text-decoration: line-through; }
-.issues { list-style: none; margin: 0; padding: 0; overflow: auto; max-height: 52vh; display: grid; gap: 6px; }
+.issues { list-style: none; margin: 0; padding: 0 4px 0 0; overflow: auto; max-height: 60vh; display: grid; gap: 6px; align-content: start; }
 .issue { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: .9rem; }
 .issue:hover { border-color: var(--accent); }
 .issue q { display: block; font-family: ui-serif, Georgia, serif; margin: 2px 0; overflow-wrap: anywhere; }
@@ -78,8 +79,14 @@ mark.focus { outline: 2px solid var(--accent); }
 
 @media (max-width: 880px) {
   .grid { grid-template-columns: 1fr; }
-  .side { position: static; max-height: none; grid-template-rows: none; }
   .issues { max-height: none; }
   .editor { height: 50vh; }
 }
 @media print { .btns, .filters { display: none; } .grid { display: block; } }
+
+.gbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.check { display: inline-flex; gap: 6px; align-items: center; font-size: .9rem; font-weight: 600; cursor: pointer; }
+button.ignore { padding: 0 8px; font-size: .75rem; margin-left: 6px; border-radius: 99px; }
+.grid > * { min-width: 0; }
+
+@media (min-width: 881px) { .editor-card { position: sticky; top: 12px; } }

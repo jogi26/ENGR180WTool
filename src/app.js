@@ -1,5 +1,6 @@
 import { analyze } from './analyzer.js';
 import { score } from './scorer.js';
+import { lintGrammar } from './harper-bridge.js';
 
 const $ = (id) => document.getElementById(id);
 const essay = $('essay'), mirror = $('mirror');
@@ -7,6 +8,7 @@ const essay = $('essay'), mirror = $('mirror');
 const TYPES = {
   past: 'Past tense', future: 'Future tense', longSentence: 'Long sentences', longParagraph: 'Long paragraphs',
   noise: 'Noise phrases', passive: 'Passive voice', latinate: 'Fancy words', ambiguousRef: 'Vague "it/this"',
+  grammar: 'Grammar & spelling', heading: 'Headings',
 };
 const ROWS = [
   { grp: 'Counts toward the rubric' },
@@ -15,6 +17,7 @@ const ROWS = [
   { grp: 'Fix soon (no points lost yet)' },
   { k: 'noise', t: 'Table 2.1 noise phrases' }, { k: 'passive', t: 'Passive voice' },
   { k: 'latinate', t: 'Fancy words (latinates)' }, { k: 'ambiguousRef', t: 'Vague "it" / "this" openers' },
+  { k: 'grammar', t: 'Grammar & spelling' }, { k: 'heading', t: 'Heading / header-block notes' },
 ];
 const TAG = { error: 'Fix', warn: 'Check', info: 'Tip' };
 const NO_HIGHLIGHT = new Set(['longParagraph', 'topicSentence', 'heading']);
@@ -25,7 +28,9 @@ const store = {
 };
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-let text = '', result = { issues: [], stats: {} }, hidden = new Set(), baseline = null, timer = 0;
+let text = '', result = { issues: [], stats: {} }, hidden = new Set(), baseline = null, timer = 0, gtimer = 0;
+let syncIssues = [], harperIssues = [], grammarOn = store.get('engr180w.grammar') !== 'off', gstate = 'idle', ignored = new Set();
+try { ignored = new Set(JSON.parse(store.get('engr180w.ignored') || '[]')); } catch { ignored = new Set(); }
 try { baseline = JSON.parse(store.get('engr180w.baseline') || 'null'); } catch { baseline = null; }
 
 const visible = (i) => !hidden.has(i.type);
@@ -77,7 +82,7 @@ function renderIssues() {
   if (!shown.length) { list.innerHTML = '<li class="empty">No issues in the selected categories. Nice work.</li>'; return; }
   const CAP = 400;
   list.innerHTML = shown.slice(0, CAP).map(([i, k]) =>
-    `<li class="issue" tabindex="0" role="button" data-k="${k}"><span class="tag ${i.severity}">${TAG[i.severity]}</span>${esc(i.message)}${snippet(i)}<div class="fix">${esc(fixText(i))}</div></li>`).join('')
+    `<li class="issue" tabindex="0" role="button" data-k="${k}"><span class="tag ${i.severity}">${TAG[i.severity]}</span>${esc(i.message)}${snippet(i)}<div class="fix">${esc(fixText(i))}${i.ignoreKey ? ` <button type="button" class="ignore" data-key="${esc(i.ignoreKey)}">Ignore</button>` : ''}</div></li>`).join('')
     + (shown.length > CAP ? `<li class="empty">Showing the first ${CAP} of ${shown.length}.</li>` : '');
 }
 
@@ -107,9 +112,53 @@ function renderFilters() {
     `<button type="button" data-type="${k}" aria-pressed="${!hidden.has(k)}">${v}</button>`).join('');
 }
 
+function merge() {
+  const custom = syncIssues.filter((i) => i.type === 'grammar');
+  const heads = (result.paragraphs || []).filter((p) => p.isHeading);
+  const inHeading = (h) => h.kind === 'Spelling' && heads.some((p) => h.start >= p.start && h.end <= p.end); // names, course codes
+  const extra = harperIssues.filter((h) => !ignored.has(h.ignoreKey) && !inHeading(h)
+    && !custom.some((c) => h.start < c.end && c.start < h.end));
+  result = { ...result, issues: [...syncIssues, ...extra].sort((a, b) => a.start - b.start || a.end - b.end) };
+}
+
+function renderStatus() {
+  const el = $('gstatus');
+  const msg = { off: 'Grammar & spelling check is off.', loading: 'Loading the grammar engine (about 16 MB, one time)…',
+    checking: 'Checking grammar…', idle: 'The grammar engine loads when you add text.', ready: 'Grammar & spelling engine ready (runs locally).',
+    error: 'The grammar engine could not load, so only the built-in grammar rules and your browser spell check are active.',}[gstate];
+  el.textContent = msg + (ignored.size ? ` ${ignored.size} ignored.` : '');
+  if (ignored.size) {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Reset ignored'; b.className = 'ignore'; b.id = 'resetIgnored';
+    el.append(' ', b);
+  }
+  essay.spellcheck = gstate === 'error' || gstate === 'off';
+}
+
 function refresh() {
   result = analyze(text);
-  renderScore(); renderIssues(); renderMirror(); renderCaret();
+  syncIssues = result.issues;
+  harperIssues = [];
+  merge();
+  renderAll();
+  runHarper();
+}
+function renderAll() { renderScore(); renderIssues(); renderMirror(); renderCaret(); renderStatus(); }
+
+function runHarper() {
+  clearTimeout(gtimer);
+  if (!grammarOn) { gstate = 'off'; renderStatus(); return; }
+  if (!text.trim()) { if (gstate !== 'ready') gstate = 'idle'; renderStatus(); return; }
+  gtimer = setTimeout(async () => {
+    const snapshot = text;
+    gstate = gstate === 'ready' ? 'checking' : 'loading';
+    renderStatus();
+    const { issues, error } = await lintGrammar(snapshot);
+    if (snapshot !== text) return; // text changed while linting; a newer run is queued
+    gstate = error ? 'error' : 'ready';
+    harperIssues = issues;
+    merge();
+    renderAll();
+  }, 600);
 }
 
 function renderCaret() {
@@ -151,16 +200,31 @@ essay.addEventListener('input', () => {
   text = essay.value;
   store.set('engr180w.text', text);
   mirror.innerHTML = esc(text) + '\n';
+  harperIssues = [];
   clearTimeout(timer);
   timer = setTimeout(refresh, 200);
 });
 essay.addEventListener('scroll', () => { mirror.scrollTop = essay.scrollTop; });
 ['click', 'keyup', 'select'].forEach((ev) => essay.addEventListener(ev, renderCaret));
 
-$('issues').addEventListener('click', (e) => { const li = e.target.closest('.issue'); if (li) jumpTo(+li.dataset.k); });
+$('issues').addEventListener('click', (e) => {
+  const ig = e.target.closest('.ignore');
+  if (ig) { ignored.add(ig.dataset.key); store.set('engr180w.ignored', JSON.stringify([...ignored])); merge(); renderAll(); return; }
+  const li = e.target.closest('.issue'); if (li) jumpTo(+li.dataset.k);
+});
+$('gstatus').addEventListener('click', (e) => {
+  if (e.target.id !== 'resetIgnored') return;
+  ignored.clear(); store.set('engr180w.ignored', '[]'); merge(); renderAll();
+});
+$('grammarToggle').checked = grammarOn;
+$('grammarToggle').addEventListener('change', (e) => {
+  grammarOn = e.target.checked; store.set('engr180w.grammar', grammarOn ? 'on' : 'off');
+  if (!grammarOn) { harperIssues = []; merge(); renderAll(); } else runHarper();
+  renderStatus();
+});
 $('issues').addEventListener('keydown', (e) => {
   const li = e.target.closest('.issue');
-  if (li && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); jumpTo(+li.dataset.k); }
+  if (li && e.target === li && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); jumpTo(+li.dataset.k); }
 });
 $('filters').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
