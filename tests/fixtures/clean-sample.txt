@@ -1,0 +1,6 @@
+Why Software Needs Hardware
+Software needs hardware to run. A program is only text until a processor runs it. A processor needs power, memory, and a clock. Each part has one job.
+
+Hardware also needs software. A circuit board does nothing without code. The code tells each chip what to do. Together they make a useful tool.
+
+You can see this in a phone. The screen detects a touch. The processor reads the touch. The app responds to it. Each step depends on the one before.
